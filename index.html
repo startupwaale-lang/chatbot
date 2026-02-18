@@ -1,115 +1,140 @@
+chatbot/
+│
+├── index.html
+│
+└── api/
+    └── chat.js
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Chatbot</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 0;
-    }
-    .chatbox {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      width: 320px;
-      height: 420px;
-      background: #fff;
-      border-radius: 10px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.3);
+      background: #f2f2f2;
       display: flex;
       flex-direction: column;
+      height: 100vh;
+      margin: 0;
     }
-    .messages {
+    #chat-container {
       flex: 1;
-      padding: 10px;
       overflow-y: auto;
-      font-size: 14px;
+      padding: 20px;
+      background: white;
+      border-bottom: 1px solid #ddd;
     }
-    .bot {
-      background: #f1f1f1;
-      padding: 8px;
-      border-radius: 8px;
-      margin-bottom: 6px;
+    .message {
+      margin-bottom: 15px;
+      padding: 10px;
+      border-radius: 10px;
+      max-width: 70%;
     }
     .user {
-      background: #4caf50;
-      color: white;
-      padding: 8px;
-      border-radius: 8px;
-      margin-bottom: 6px;
-      text-align: right;
+      background: #d1e7ff;
+      margin-left: auto;
     }
-    input {
-      border: none;
-      border-top: 1px solid #ddd;
+    .bot {
+      background: #e6e6e6;
+      margin-right: auto;
+    }
+    #input-area {
+      display: flex;
       padding: 10px;
-      font-size: 14px;
-      outline: none;
+      background: #fff;
+    }
+    #message-input {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    #send-btn {
+      padding: 10px 20px;
+      margin-left: 10px;
+      background: black;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
 
-<div class="chatbox">
-  <div class="messages" id="messages"></div>
-  <input type="text" id="input" placeholder="Type here..." />
-</div>
+  <div id="chat-container"></div>
 
-<script>
-  const messages = document.getElementById("messages");
-  const input = document.getElementById("input");
+  <div id="input-area">
+    <input id="message-input" placeholder="Type your message..." />
+    <button id="send-btn">Send</button>
+  </div>
 
-  let step = 0;
-  let userData = {};
+  <script>
+    const chatContainer = document.getElementById("chat-container");
+    const input = document.getElementById("message-input");
+    const sendBtn = document.getElementById("send-btn");
 
-  function addMessage(text, type) {
-    const div = document.createElement("div");
-    div.className = type;
-    div.innerText = text;
-    messages.appendChild(div);
-    messages.scrollTop = messages.scrollHeight;
-  }
+    function addMessage(text, sender) {
+      const div = document.createElement("div");
+      div.className = "message " + sender;
+      div.innerText = text;
+      chatContainer.appendChild(div);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
 
-  addMessage("👋 Hi! What’s your name?", "bot");
+    async function sendMessage() {
+      const userText = input.value.trim();
+      if (!userText) return;
 
-  input.addEventListener("keydown", function (e) {
-    if (e.key === "Enter" && input.value.trim() !== "") {
-      const value = input.value;
-      addMessage(value, "user");
+      addMessage(userText, "user");
       input.value = "";
 
-      if (step === 0) {
-        userData.name = value;
-        addMessage("📞 Great! Your phone number?", "bot");
-        step++;
-      } else if (step === 1) {
-        userData.phone = value;
-        addMessage("📧 And your email?", "bot");
-        step++;
-      } else if (step === 2) {
-        userData.email = value;
-        addMessage("✅ Thank you! We will contact you soon.", "bot");
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userText })
+      });
 
-        fetch("https://script.google.com/macros/s/AKfycby0yUkQpH8yrvMOGrUea4EoNzDpXiBTt6L8zsZXOY4ao2LTp4gEiHN29u_9bFonU2UC/exec", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify(userData)
-});
-
-        input.disabled = true;
-      }
+      const data = await response.json();
+      addMessage(data.reply, "bot");
     }
-  });
-</script>
 
+    sendBtn.addEventListener("click", sendMessage);
+    input.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") sendMessage();
+    });
+  </script>
 </body>
 </html>
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Only POST allowed" });
+  }
 
+  const { message } = req.body;
 
+  try {
+    const apiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: "gpt-3.5-turbo",
+        messages: [{ role: "user", content: message }]
+      })
+    });
 
+    const data = await apiRes.json();
 
+    return res.status(200).json({
+      reply: data.choices?.[0]?.message?.content || "No response"
+    });
 
-
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+}
