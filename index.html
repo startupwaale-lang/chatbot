@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Chatbot</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+    }
+    .chatbox {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 320px;
+      height: 420px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+    }
+    .messages {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      font-size: 14px;
+    }
+    .bot {
+      background: #f1f1f1;
+      padding: 8px;
+      border-radius: 8px;
+      margin-bottom: 6px;
+    }
+    .user {
+      background: #4caf50;
+      color: white;
+      padding: 8px;
+      border-radius: 8px;
+      margin-bottom: 6px;
+      text-align: right;
+    }
+    input {
+      border: none;
+      border-top: 1px solid #ddd;
+      padding: 10px;
+      font-size: 14px;
+      outline: none;
+    }
+  </style>
+</head>
+<body>
+
+<div class="chatbox">
+  <div class="messages" id="messages"></div>
+  <input type="text" id="input" placeholder="Type here..." />
+</div>
+
+<script>
+  const messages = document.getElementById("messages");
+  const input = document.getElementById("input");
+
+  let step = 0;
+  let userData = {};
+
+  function addMessage(text, type) {
+    const div = document.createElement("div");
+    div.className = type;
+    div.innerText = text;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  addMessage("👋 Hi! What’s your name?", "bot");
+
+  input.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && input.value.trim() !== "") {
+      const value = input.value;
+      addMessage(value, "user");
+      input.value = "";
+
+      if (step === 0) {
+        userData.name = value;
+        addMessage("📞 Great! Your phone number?", "bot");
+        step++;
+      } else if (step === 1) {
+        userData.phone = value;
+        addMessage("📧 And your email?", "bot");
+        step++;
+      } else if (step === 2) {
+        userData.email = value;
+        addMessage("✅ Thank you! We will contact you soon.", "bot");
+
+        fetch("https://script.google.com/macros/s/AKfycbwcVCSYJpu067-tenrchPm4kRBRPOWwTk5v0dRQ3XMKrUInJtN4Is1QbJmmYw20KvDW/exec", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(userData)
+        });
+
+        input.disabled = true;
+      }
+    }
+  });
+</script>
+
+</body>
+</html>
